@@ -659,6 +659,18 @@ class OptimizationHandlable(Indexable):
 
         Also we want to update param_array in here.
         """
+        self._inverse_hyperparameter_transform(p, self.param_array)
+        self._optimizer_copy_transformed = False
+        self.trigger_update()
+
+    def _inverse_hyperparameter_transform(self, transformed_parameters, param_array):
+        """
+        Make sure the optimizer copy does not get touched, thus, we only want to
+        set the values *inside* not the array itself.
+
+        Also we want to update param_array in here.
+        """
+        p = transformed_parameters
         f = None
         if self.has_parent() and self.constraints[__fixed__].size != 0:
             f = np.ones(self.size).astype(bool)
@@ -667,20 +679,17 @@ class OptimizationHandlable(Indexable):
             f = self._fixes_
         if f is None:
             self.param_array.flat = p
-            [np.put(self.param_array, ind, c.f(self.param_array.flat[ind]))
+            [np.put(param_array, ind, c.f(self.param_array.flat[ind]))
              #py3 fix
              #for c, ind in self.constraints.iteritems() if c != __fixed__]
              for c, ind in self.constraints.items() if c != __fixed__]
         else:
-            self.param_array.flat[f] = p
-            [np.put(self.param_array, ind[f[ind]], c.f(self.param_array.flat[ind[f[ind]]]))
+            param_array.flat[f] = p
+            [np.put(param_array, ind[f[ind]], c.f(param_array.flat[ind[f[ind]]]))
              #py3 fix
              #for c, ind in self.constraints.iteritems() if c != __fixed__]
              for c, ind in self.constraints.items() if c != __fixed__]
         #self._highest_parent_.tie.propagate_val()
-
-        self._optimizer_copy_transformed = False
-        self.trigger_update()
 
     def _get_params_transformed(self):
         raise DeprecationWarning("_get|set_params{_optimizer_copy_transformed} is deprecated, use self.optimizer array insetad!")

@@ -93,7 +93,7 @@ class Gaussian(Prior):
 #         self.constant = -0.5 * np.log(2 * np.pi * self.sigma2)
 
 
-class JeffreysPrior(Prior):
+class Jeffreys(Prior):
 
     """
     Implementation of Jeffreys prior for a scale parameter.
@@ -109,6 +109,19 @@ class JeffreysPrior(Prior):
 
     def __str__(self):
         return "Jeffreys"
+
+
+class LogLogistic(Prior):
+
+    """
+    This is the Log-Logistic prior suggested as a good prior for lengthscales by Conti & O'Hagan (2010).
+    """
+
+    def lnpdf(self, x):
+        return -(1. + x ** 2)
+
+    def lnpdf_grad(self, x):
+        return -2. * x
 
 
 class Uniform(Prior):
