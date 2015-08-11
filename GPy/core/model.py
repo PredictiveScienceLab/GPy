@@ -5,6 +5,7 @@
 from .. import likelihoods
 from ..inference import optimization
 from ..util.misc import opt_wrapper
+from ..inference.mcmc import PyMCInterface
 from parameterization import Parameterized
 import multiprocessing as mp
 import numpy as np
@@ -12,12 +13,13 @@ from numpy.linalg.linalg import LinAlgError
 import itertools
 # import numdifftools as ndt
 
-class Model(Parameterized):
+class Model(Parameterized, PyMCInterface):
     _fail_count = 0  # Count of failed optimization steps (see objective)
     _allowed_failures = 10  # number of allowed failures
 
     def __init__(self, name):
-        super(Model, self).__init__(name)  # Parameterized.__init__(self)
+        Parameterized.__init__(self, name)
+        PyMCInterface.__init__(self)
         self.optimization_runs = []
         self.sampling_runs = []
         self.preferred_optimizer = 'bfgs'

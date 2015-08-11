@@ -20,7 +20,7 @@ class Prior(object):
                     cls._instance = newfunc(cls)  
                 else:
                     cls._instance = newfunc(cls, *args, **kwargs)
-                return cls._instance
+        return cls._instance
 
     def pdf(self, x):
         return np.exp(self.lnpdf(x))
@@ -35,6 +35,7 @@ class Prior(object):
 
     def __repr__(self, *args, **kwargs):
         return self.__str__()
+
 
 
 class Gaussian(Prior):
@@ -90,6 +91,25 @@ class Gaussian(Prior):
 #         self.sigma = state[1]
 #         self.sigma2 = np.square(self.sigma)
 #         self.constant = -0.5 * np.log(2 * np.pi * self.sigma2)
+
+
+class JeffreysPrior(Prior):
+
+    """
+    Implementation of Jeffreys prior for a scale parameter.
+
+    """
+    domain = _POSITIVE
+    
+    def lnpdf(self, x):
+        return -x
+
+    def lnpdf_grad(self, x):
+        return -np.ones_like(x)
+
+    def __str__(self):
+        return "Jeffreys"
+
 
 class Uniform(Prior):
     domain = _REAL
