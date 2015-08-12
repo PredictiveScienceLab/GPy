@@ -678,7 +678,7 @@ class OptimizationHandlable(Indexable):
         elif self._has_fixes():
             f = self._fixes_
         if f is None:
-            self.param_array.flat = p
+            param_array.flat = p
             [np.put(param_array, ind, c.f(self.param_array.flat[ind]))
              #py3 fix
              #for c, ind in self.constraints.iteritems() if c != __fixed__]

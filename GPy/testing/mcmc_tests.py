@@ -65,71 +65,92 @@ class Rosenbrock(GPy.priors.Prior):
 
 class PyMCTestCase(unittest.TestCase):
 
-    def test_sampling_from_1d_dist(self):
-        """
-        Test if we can actually sample from a 1D distribution.
-        """
-        m = TestModel()
-        prior = GPy.priors.LogGaussian(.1, 0.9)
-        m.x.set_prior(prior)
-        m.x.unconstrain()
-        m.x.constrain(GPy.constraints.Logexp())
-        # Now use the adaptive metropolis algorithms to sample from this thing
-        m.pymc_mcmc.sample(10000, burn=1000, thin=10) 
-        theta = m.pymc_mcmc.trace('hyperparameters')[:]
-        phi = m.pymc_mcmc.trace('transformed_hyperparameters')[:]
-        thetas = np.linspace(theta.min(), theta.max(), 100)
-        # UNCOMMENT TO SEE GRAPHICAL COMPARISON
-        #import matplotlib.pyplot as plt
-        #fig, ax = plt.subplots()
-        #ax.hist(theta, bins=100, alpha=0.5, normed=True)
-        #true_pdf = prior.pdf(thetas)
-        #ax.plot(thetas, true_pdf, 'r', linewidth=2)
-        #plt.show(block=True)
+    #def test_sampling_from_1d_dist(self):
+    #    """
+    #    Test if we can actually sample from a 1D distribution.
+    #    """
+    #    m = TestModel()
+    #    prior = GPy.priors.LogGaussian(.1, 0.9)
+    #    m.x.set_prior(prior)
+    #    m.x.unconstrain()
+    #    m.x.constrain(GPy.constraints.Logexp())
+    #    # Now use the adaptive metropolis algorithms to sample from this thing
+    #    m.pymc_mcmc.sample(10000, burn=1000, thin=10) 
+    #    theta = m.pymc_mcmc.trace('hyperparameters')[:]
+    #    phi = m.pymc_mcmc.trace('transformed_hyperparameters')[:]
+    #    thetas = np.linspace(theta.min(), theta.max(), 100)
+    #    # UNCOMMENT TO SEE GRAPHICAL COMPARISON
+    #    #import matplotlib.pyplot as plt
+    #    #fig, ax = plt.subplots()
+    #    #ax.hist(theta, bins=100, alpha=0.5, normed=True)
+    #    #true_pdf = prior.pdf(thetas)
+    #    #ax.plot(thetas, true_pdf, 'r', linewidth=2)
+    #    #plt.show(block=True)
 
-    def test_sampling_from_1d_mixture_dist(self):
-        """
-        Test if sampling works for distributions with two modes.
-        """
-        m = TestModel()
-        prior = Mixture()
-        m.x.set_prior(prior)
-        m.x.unconstrain()
-        m.x.constrain(GPy.constraints.Logexp())
-        m.pymc_mcmc.sample(10000, burn=1000, thin=10)
-        theta = m.pymc_mcmc.trace('hyperparameters')[:]
-        # UNCOMMENT TO SEE GRAPH
-        #import matplotlib.pyplot as plt
-        #fig, ax = plt.subplots()
-        #ax.hist(theta, bins=100, alpha=0.5, normed=True)
-        #thetas = np.linspace(theta.min(), theta.max(), 100)
-        #true_pdf = prior.pdf(thetas)
-        #ax.plot(thetas, true_pdf, 'r', linewidth=2)
-        #plt.show(block=True)
+    #def test_sampling_from_1d_mixture_dist(self):
+    #    """
+    #    Test if sampling works for distributions with two modes.
+    #    """
+    #    m = TestModel()
+    #    prior = Mixture()
+    #    m.x.set_prior(prior)
+    #    m.x.unconstrain()
+    #    m.x.constrain(GPy.constraints.Logexp())
+    #    m.pymc_mcmc.sample(10000, burn=1000, thin=10)
+    #    theta = m.pymc_mcmc.trace('hyperparameters')[:]
+    #    # UNCOMMENT TO SEE GRAPH
+    #    #import matplotlib.pyplot as plt
+    #    #fig, ax = plt.subplots()
+    #    #ax.hist(theta, bins=100, alpha=0.5, normed=True)
+    #    #thetas = np.linspace(theta.min(), theta.max(), 100)
+    #    #true_pdf = prior.pdf(thetas)
+    #    #ax.plot(thetas, true_pdf, 'r', linewidth=2)
+    #    #plt.show(block=True)
 
-    def test_rosenbrock_density(self):
-        """
-        Test the Rosenbrock (1960) density which looks like a banana.
-        """
-        m = TestModel(x=[5, 10.])
-        prior = Rosenbrock()
-        m.x.set_prior(prior)
-        m.x.unconstrain()
-        m.pymc_mcmc.sample(10000, burn=1000, thin=100)
-        theta = m.pymc_mcmc.trace('hyperparameters')[:]
-        # UNCOMMENT TO SEE GRAPH
-        #import matplotlib.pyplot as plt
-        #fig, ax = plt.subplots()
-        #ax.plot(theta[:, 0], theta[:, 1], '.')
-        #plt.show(block=True)
+    #def test_rosenbrock_density(self):
+    #    """
+    #    Test the Rosenbrock (1960) density which looks like a banana.
+    #    """
+    #    m = TestModel(x=[5, 10.])
+    #    prior = Rosenbrock()
+    #    m.x.set_prior(prior)
+    #    m.x.unconstrain()
+    #    m.pymc_mcmc.sample(10000, burn=1000, thin=100)
+    #    theta = m.pymc_mcmc.trace('hyperparameters')[:]
+    #    # UNCOMMENT TO SEE GRAPH
+    #    #import matplotlib.pyplot as plt
+    #    #fig, ax = plt.subplots()
+    #    #ax.plot(theta[:, 0], theta[:, 1], '.')
+    #    #plt.show(block=True)
 
     def test_olympic_100m_men(self):
-        gpy_model = GPy.examples.regression.olympic_100m_men(plot=False, optimize=True)
+        gpy_model = GPy.examples.regression.olympic_100m_men(plot=False, optimize=False)
+        #X = gpy_model.X.copy()
+        #Y = gpy_model.Y.copy()
+        #k = GPy.kern.RBF(1, lengthscale=300., variance=25.)
+        #gpy_model = GPy.models.GPRegression(X, Y, k)
         gpy_model._X_predict=np.linspace(1850., 2050., 100)[:, None]
         gpy_model.likelihood.variance.set_prior(GPy.priors.Jeffreys())
         gpy_model.kern.variance.set_prior(GPy.priors.Jeffreys())
+        #gpy_model.kern.lengthscale.set_prior(GPy.priors.Jeffreys())
+        #gpy_model.likelihood.variance.unconstrain()
+        #gpy_model.likelihood.variance.constrain(GPy.constraints.Log())
+        #gpy_model.kern.lengthscale.unconstrain()
+        #gpy_model.kern.lengthscale.constrain(GPy.constraints.Log())
+        #gpy_model.kern.variance.unconstrain()
+        #gpy_model.kern.variance.constrain(GPy.constraints.Log())
+        print gpy_model
+        print gpy_model.param_array
+        print gpy_model.optimizer_array
         # We are use it a flat prior on the lengthscales
-        gpy_model.pymc_mcmc.sample(10000, burn=100, thin=100)
+        gpy_model.pymc_step_method_params['verbose'] = 2
+        gpy_model.pymc_step_method_params['shrink_if_necessary'] = True
+        #gpy_model.pymc_step_method_params['scales'] = {}
+        #gpy_model.pymc_step_method_params['scales'][gpy_model.pymc_model['transformed_hyperparameters']] = np.ones(3) * 0.01
+        print 'Entering the sampler'
+        gpy_model.pymc_mcmc.sample(10000, burn=5000, thin=10,
+                                   tune_throughout=False, verbose=True)
+        print 'Done with the sampler'
         theta = gpy_model.pymc_mcmc.trace('hyperparameters')[:]
         phi = gpy_model.pymc_mcmc.trace('transformed_hyperparameters')[:]
         means = gpy_model.pymc_mcmc.trace('predictive_mean')[:]
@@ -137,7 +158,15 @@ class PyMCTestCase(unittest.TestCase):
         posterior_samples = np.vstack(posterior_samples)
         p_05 = np.percentile(posterior_samples, 5, axis=0)
         p_95 = np.percentile(posterior_samples, 95, axis=0) 
+        log_like = gpy_model.pymc_mcmc.trace('log_likelihood')[:]
+        log_prior = gpy_model.pymc_mcmc.trace('log_prior')[:]
+        print log_like
+        print log_prior
+        quit()
         import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.plot(log_like + log_prior)
+        plt.show(block=True)
         fig, ax = plt.subplots()
         ax.plot(phi)
         for i in xrange(phi.shape[1]):

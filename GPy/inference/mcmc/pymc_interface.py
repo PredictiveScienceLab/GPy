@@ -123,25 +123,26 @@ class PyMCInterface(object):
         if self._pymc_model is not None:
             return self._pymc_model
         @pm.stochastic(dtype=np.ndarray)
-        def transformed_hyperparameters(value=self.optimizer_array):
-            return 0.
-        @pm.deterministic(trace=False)
-        def model(transformed_hyperparameters=transformed_hyperparameters, obj=self):
-            obj.optimizer_array = transformed_hyperparameters
-            return obj
-        @pm.stochastic(trace=False, observed=True)
-        def observation(value=1., model=model):
-            return -model.objective_function()
+        def transformed_hyperparameters(value=self.optimizer_array, model=self):
+            return -model._objective(value)
         @pm.deterministic(dtype=np.ndarray)
-        def hyperparameters(transformed_hyperparameters=transformed_hyperparameters, model=model):
+        def hyperparameters(transformed_hyperparameters=transformed_hyperparameters, model=self):
             theta = np.ndarray(transformed_hyperparameters.shape)
             model._inverse_hyperparameter_transform(transformed_hyperparameters, theta)
             return theta
+        @pm.deterministic(dtype=float)
+        def log_likelihood(model=self):
+            return model.log_likelihood()
+        @pm.deterministic(dtype=float)
+        def log_prior(model=self):
+            return model.log_prior()
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters
+        pymc_model['log_likelihood'] = log_likelihood
+        pymc_model['log_prior'] = log_prior
         if self.X_predict is not None:
             @pm.deterministic(dtype=np.ndarray, trace=False)
-            def full_prediction(model=model):
+            def full_prediction(model=self):
                 return model.predict(model.X_predict, full_cov=True)
             @pm.deterministic(dtype=np.ndarray)
             def predictive_mean(full_prediction=full_prediction):
@@ -151,7 +152,7 @@ class PyMCInterface(object):
                 return full_prediction[1]
             @pm.deterministic(dtype=np.ndarray)
             def posterior_samples(mu=predictive_mean, C=predictive_covariance,
-                                  model=model):
+                                  model=self):
                 return np.random.multivariate_normal(mu.flatten(), C, model.num_predict)
             pymc_model['full_prediction'] = full_prediction
             pymc_model['predictive_mean'] = predictive_mean

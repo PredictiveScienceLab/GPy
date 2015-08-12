@@ -38,7 +38,7 @@ class Transformation(object):
         raise NotImplementedError
     def log_jacobian_grad(self, model_param):
         """
-        compute the drivative of the log of the jacobian of f, evaluated at f(x)= model_param
+        compute the derivative of the log of the jacobian of f, evaluated at f(x)= model_param
         """
         raise NotImplementedError
     def gradfactor(self, model_param, dL_dmodel_param):
@@ -70,6 +70,25 @@ class Transformation(object):
         raise NotImplementedError
     def __repr__(self):
         return self.__class__.__name__
+
+class Log(Transformation):
+    domain = _POSITIVE
+    def initialize(self, f):
+        if np.any(f < 0.):
+            print("Warning: changing parameters to satisfy constraints")
+        return np.abs(f)
+    def f(self, opt_param):
+        return np.exp(opt_param)
+    def finv(self, model_param):
+        return np.log(model_param)
+    def gradfactor(self, model_param, dl_dmodel_param):
+        return np.einsum('i,i->i', dl_dmodel_param, model_param)
+    def log_jacobian(self, model_param):
+        return np.log(model_param)
+    def log_jacobian_grad(self, model_param):
+        return np.ones_like(model_param)
+    def __str__(self):
+        return '+ve (log)'
 
 class Logexp(Transformation):
     domain = _POSITIVE
