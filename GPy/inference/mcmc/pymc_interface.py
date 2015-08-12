@@ -137,27 +137,27 @@ class PyMCInterface(object):
             theta = np.ndarray(transformed_hyperparameters.shape)
             model._inverse_hyperparameter_transform(transformed_hyperparameters, theta)
             return theta
-        @pm.deterministic(dtype=np.ndarray, trace=False)
-        def full_prediction(model=model):
-            return model.predict(model.X_predict, full_cov=True)
-        @pm.deterministic(dtype=np.ndarray)
-        def predictive_mean(full_prediction=full_prediction):
-            return full_prediction[0]
-        @pm.deterministic(dtype=np.ndarray)
-        def predictive_covariance(full_prediction=full_prediction):
-            return full_prediction[1]
-        @pm.deterministic(dtype=np.ndarray)
-        def posterior_samples(mu=predictive_mean, C=predictive_covariance,
-                              model=model):
-            return np.random.multivariate_normal(mu.flatten(), C, model.num_predict)
-        model = {'transformed_hyperparameters': transformed_hyperparameters}
-        model['hyperparameters'] = hyperparameters
+        pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
+        pymc_model['hyperparameters'] = hyperparameters
         if self.X_predict is not None:
-            model['full_prediction'] = full_prediction
-            model['predictive_mean'] = predictive_mean
-            model['predictive_variance'] = predictive_covariance
-            model['posterior_samples'] = posterior_samples
-        self._pymc_model = model
+            @pm.deterministic(dtype=np.ndarray, trace=False)
+            def full_prediction(model=model):
+                return model.predict(model.X_predict, full_cov=True)
+            @pm.deterministic(dtype=np.ndarray)
+            def predictive_mean(full_prediction=full_prediction):
+                return full_prediction[0]
+            @pm.deterministic(dtype=np.ndarray)
+            def predictive_covariance(full_prediction=full_prediction):
+                return full_prediction[1]
+            @pm.deterministic(dtype=np.ndarray)
+            def posterior_samples(mu=predictive_mean, C=predictive_covariance,
+                                  model=model):
+                return np.random.multivariate_normal(mu.flatten(), C, model.num_predict)
+            pymc_model['full_prediction'] = full_prediction
+            pymc_model['predictive_mean'] = predictive_mean
+            pymc_model['predictive_variance'] = predictive_covariance
+            pymc_model['posterior_samples'] = posterior_samples
+        self._pymc_model = pymc_model
         return self._pymc_model
 
     @property

@@ -33,9 +33,6 @@ class Prior(object):
 
         priors_plots.univariate_plot(self)
 
-    def __repr__(self, *args, **kwargs):
-        return self.__str__()
-
 
 
 class Gaussian(Prior):
