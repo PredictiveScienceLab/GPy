@@ -57,6 +57,18 @@ class PyMCInterface(object):
 
     # The options for the database
     _pymc_db_opts = None
+    
+    # The step method you want to assign to sample the hyper-parameters
+    _pymc_step_method = None
+    
+    # The parameters you want to pass to the step method class
+    _pymc_step_method_params = None
+
+    # Points on which to draw predictions
+    _X_predict = None
+
+    # Number of samples to take for predictions
+    _num_predict = None
 
     @property
     def pymc_db(self):
@@ -75,10 +87,33 @@ class PyMCInterface(object):
     def pymc_db_opts(self, value):
         assert isinstance(value, dict)
         self._pymc_db_opts = value
+        
+    @property
+    def pymc_step_method(self):
+        return self._pymc_step_method
+        
+    @property
+    def pymc_step_method_params(self):
+        return self._pymc_step_method_params
 
-    def __init__(self, pymc_db='ram', pymc_db_opts={}):
+    @property
+    def X_predict(self):
+        return self._X_predict
+
+    @property
+    def num_predict(self):
+        return self._num_predict
+
+    def __init__(self, pymc_db='ram', pymc_db_opts={},
+                 pymc_step_method=pm.AdaptiveMetropolis,
+                 pymc_step_method_params={},
+                 X_predict=None, num_predict=100):
         self._pymc_db = pymc_db
         self._pymc_db_opts = pymc_db_opts
+        self._pymc_step_method = pymc_step_method
+        self._pymc_step_method_params = pymc_step_method_params
+        self._X_predict = X_predict
+        self._num_predict = num_predict
 
     @property
     def pymc_model(self):
@@ -88,15 +123,40 @@ class PyMCInterface(object):
         if self._pymc_model is not None:
             return self._pymc_model
         @pm.stochastic(dtype=np.ndarray)
-        def transformed_hyperparameters(value=self.optimizer_array, model=self):
-            return -model._objective(value)
+        def transformed_hyperparameters(value=self.optimizer_array):
+            return 0.
+        @pm.deterministic(trace=False)
+        def model(transformed_hyperparameters=transformed_hyperparameters, obj=self):
+            obj.optimizer_array = transformed_hyperparameters
+            return obj
+        @pm.stochastic(trace=False, observed=True)
+        def observation(value=1., model=model):
+            return -model.objective_function()
         @pm.deterministic(dtype=np.ndarray)
-        def hyperparameters(transformed_hyperparameters=transformed_hyperparameters, model=self):
+        def hyperparameters(transformed_hyperparameters=transformed_hyperparameters, model=model):
             theta = np.ndarray(transformed_hyperparameters.shape)
             model._inverse_hyperparameter_transform(transformed_hyperparameters, theta)
             return theta
+        @pm.deterministic(dtype=np.ndarray, trace=False)
+        def full_prediction(model=model):
+            return model.predict(model.X_predict, full_cov=True)
+        @pm.deterministic(dtype=np.ndarray)
+        def predictive_mean(full_prediction=full_prediction):
+            return full_prediction[0]
+        @pm.deterministic(dtype=np.ndarray)
+        def predictive_covariance(full_prediction=full_prediction):
+            return full_prediction[1]
+        @pm.deterministic(dtype=np.ndarray)
+        def posterior_samples(mu=predictive_mean, C=predictive_covariance,
+                              model=model):
+            return np.random.multivariate_normal(mu.flatten(), C, model.num_predict)
         model = {'transformed_hyperparameters': transformed_hyperparameters}
         model['hyperparameters'] = hyperparameters
+        if self.X_predict is not None:
+            model['full_prediction'] = full_prediction
+            model['predictive_mean'] = predictive_mean
+            model['predictive_variance'] = predictive_covariance
+            model['posterior_samples'] = posterior_samples
         self._pymc_model = model
         return self._pymc_model
 
@@ -109,6 +169,7 @@ class PyMCInterface(object):
         if self._pymc_mcmc is not None:
             return self._pymc_mcmc
         self._pymc_mcmc = pm.MCMC(self.pymc_model, db=self.pymc_db, **self.pymc_db_opts)
-        self._pymc_mcmc.use_step_method(pm.AdaptiveMetropolis,
-                                        self.pymc_model['transformed_hyperparameters'])
+        self._pymc_mcmc.use_step_method(self.pymc_step_method,
+                                        self.pymc_model['transformed_hyperparameters'],
+                                        **self.pymc_step_method_params)
         return self._pymc_mcmc

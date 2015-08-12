@@ -122,6 +122,9 @@ class LogLogistic(Prior):
 
     def lnpdf_grad(self, x):
         return -2. * x
+        
+    def __str__(self):
+        return "Log-Logistic"
 
 
 class Uniform(Prior):
