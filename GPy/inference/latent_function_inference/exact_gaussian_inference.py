@@ -20,6 +20,7 @@ class ExactGaussianInference(LatentFunctionInference):
 
     """
     def __init__(self):
+        self.count = 0
         pass#self._YYTfactor_cache = caching.cache()
 
     def get_YYTfactor(self, Y):
@@ -40,6 +41,7 @@ class ExactGaussianInference(LatentFunctionInference):
         """
         Returns a Posterior class containing essential quantities of the posterior
         """
+        self.count += 1
         YYT_factor = self.get_YYTfactor(Y)
 
         K = kern.K(X)

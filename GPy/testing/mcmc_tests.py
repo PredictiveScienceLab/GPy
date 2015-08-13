@@ -131,10 +131,12 @@ class PyMCTestCase(unittest.TestCase):
         #k = GPy.kern.RBF(1, lengthscale=300., variance=25.)
         #gpy_model = GPy.models.GPRegression(X, Y, k)
         gpy_model._X_predict=np.linspace(1850., 2050., 100)[:, None]
+        gpy_model.update_model(False)
         gpy_model.likelihood.variance.set_prior(GPy.priors.Jeffreys())
         gpy_model.kern.variance.set_prior(GPy.priors.Jeffreys())
         #gpy_model.kern.lengthscale.set_prior(GPy.priors.Jeffreys())
         gpy_model.kern.lengthscale.set_prior(GPy.priors.LogGaussian(mu=500., sigma=100.))
+        gpy_model.update_model(True)
         #gpy_model.likelihood.variance.unconstrain()
         #gpy_model.likelihood.variance.constrain(GPy.constraints.Log())
         #gpy_model.kern.lengthscale.unconstrain()
@@ -148,6 +150,7 @@ class PyMCTestCase(unittest.TestCase):
         #gpy_model.pymc_step_method_params['scales'][gpy_model.pymc_model['transformed_hyperparameters']] = np.ones(3) * 0.01
         gpy_model.pymc_mcmc.sample(10000, burn=5000, thin=200,
                                    tune_throughout=False, verbose=False)
+        print 'number of choleskys:', gpy_model.inference_method.count
         theta = gpy_model.pymc_mcmc.trace('hyperparameters')[:]
         phi = gpy_model.pymc_mcmc.trace('transformed_hyperparameters')[:]
         means = gpy_model.pymc_mcmc.trace('predictive_mean')[:]

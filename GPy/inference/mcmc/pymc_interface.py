@@ -128,44 +128,45 @@ class PyMCInterface(object):
         @pm.deterministic(trace=False)
         def model(theta=transformed_hyperparameters, obj=self):
             obj.optimizer_array = theta
-            return obj
+            res = {}
+            res['log_p'] = -obj.objective_function()
+            res['log_like'] = obj.log_likelihood()
+            res['log_prior'] = obj.log_prior()
+            phi = np.ndarray(theta.shape)
+            obj._inverse_hyperparameter_transform(theta, phi)
+            res['theta'] = theta
+            if obj.X_predict is not None:
+                tmp = obj.predict(obj.X_predict, full_cov=True)
+                res['predictive_mean'] = tmp[0]
+                res['predictive_covariance'] = tmp[1]
+            return res
         @pm.stochastic(observed=True, trace=False)
-        def observation(value=1., model=model, theta=transformed_hyperparameters):
-            return -model.objective_function()
+        def observation(value=1., model=model):
+            return model['log_p']
         @pm.deterministic(dtype=np.ndarray)
-        def hyperparameters(transformed_hyperparameters=transformed_hyperparameters, model=model):
-            theta = np.ndarray(transformed_hyperparameters.shape)
-            model._inverse_hyperparameter_transform(transformed_hyperparameters, theta)
-            return theta
+        def hyperparameters(model=model):
+            return model['theta']
         @pm.deterministic(dtype=float)
-        def log_likelihood(model=model, theta=transformed_hyperparameters):
-            model.optimizer_array = theta
-            return model.log_likelihood()
+        def log_likelihood(model=model):#, theta=transformed_hyperparameters):
+            return model['log_like']
         @pm.deterministic(dtype=float)
-        def log_prior(model=model, theta=transformed_hyperparameters):
-            model.optimizer_array = theta
-            return model.log_prior()
+        def log_prior(model=model):
+            return model['log_prior']
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters
         pymc_model['log_likelihood'] = log_likelihood
         pymc_model['log_prior'] = log_prior
         if self.X_predict is not None:
-            @pm.deterministic(dtype=np.ndarray, trace=False)
-            def full_prediction(model=model, theta=transformed_hyperparameters):
-                model.optimizer_array = theta
-                return model.predict(model.X_predict, full_cov=True)
             @pm.deterministic(dtype=np.ndarray)
-            def predictive_mean(full_prediction=full_prediction):
-                return full_prediction[0]
+            def predictive_mean(model=model):
+                return model['predictive_mean']
             @pm.deterministic(dtype=np.ndarray)
-            def predictive_covariance(full_prediction=full_prediction):
-                return full_prediction[1]
+            def predictive_covariance(model=model):
+                return model['predictive_covariance']
             @pm.deterministic(dtype=np.ndarray)
             def posterior_samples(mu=predictive_mean, C=predictive_covariance,
                                   model=model, theta=transformed_hyperparameters):
-                model.optimizer_array = theta
-                return np.random.multivariate_normal(mu.flatten(), C, model.num_predict)
-            pymc_model['full_prediction'] = full_prediction
+                return np.random.multivariate_normal(mu.flatten(), C, self.num_predict)
             pymc_model['predictive_mean'] = predictive_mean
             pymc_model['predictive_variance'] = predictive_covariance
             pymc_model['posterior_samples'] = posterior_samples
