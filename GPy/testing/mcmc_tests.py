@@ -124,7 +124,8 @@ class PyMCTestCase(unittest.TestCase):
     #    #plt.show(block=True)
 
     def test_olympic_100m_men(self):
-        gpy_model = GPy.examples.regression.olympic_100m_men(plot=False, optimize=False)
+        np.random.seed(12345)
+        gpy_model = GPy.examples.regression.olympic_100m_men(plot=False, optimize=True)
         #X = gpy_model.X.copy()
         #Y = gpy_model.Y.copy()
         #k = GPy.kern.RBF(1, lengthscale=300., variance=25.)
@@ -133,24 +134,20 @@ class PyMCTestCase(unittest.TestCase):
         gpy_model.likelihood.variance.set_prior(GPy.priors.Jeffreys())
         gpy_model.kern.variance.set_prior(GPy.priors.Jeffreys())
         #gpy_model.kern.lengthscale.set_prior(GPy.priors.Jeffreys())
+        gpy_model.kern.lengthscale.set_prior(GPy.priors.LogGaussian(mu=500., sigma=100.))
         #gpy_model.likelihood.variance.unconstrain()
         #gpy_model.likelihood.variance.constrain(GPy.constraints.Log())
         #gpy_model.kern.lengthscale.unconstrain()
         #gpy_model.kern.lengthscale.constrain(GPy.constraints.Log())
         #gpy_model.kern.variance.unconstrain()
         #gpy_model.kern.variance.constrain(GPy.constraints.Log())
-        print gpy_model
-        print gpy_model.param_array
-        print gpy_model.optimizer_array
         # We are use it a flat prior on the lengthscales
-        gpy_model.pymc_step_method_params['verbose'] = 2
+        gpy_model.pymc_step_method_params['verbose'] = 0
         gpy_model.pymc_step_method_params['shrink_if_necessary'] = True
         #gpy_model.pymc_step_method_params['scales'] = {}
         #gpy_model.pymc_step_method_params['scales'][gpy_model.pymc_model['transformed_hyperparameters']] = np.ones(3) * 0.01
-        print 'Entering the sampler'
-        gpy_model.pymc_mcmc.sample(10000, burn=5000, thin=10,
-                                   tune_throughout=False, verbose=True)
-        print 'Done with the sampler'
+        gpy_model.pymc_mcmc.sample(10000, burn=5000, thin=200,
+                                   tune_throughout=False, verbose=False)
         theta = gpy_model.pymc_mcmc.trace('hyperparameters')[:]
         phi = gpy_model.pymc_mcmc.trace('transformed_hyperparameters')[:]
         means = gpy_model.pymc_mcmc.trace('predictive_mean')[:]
@@ -162,7 +159,6 @@ class PyMCTestCase(unittest.TestCase):
         log_prior = gpy_model.pymc_mcmc.trace('log_prior')[:]
         print log_like
         print log_prior
-        quit()
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         ax.plot(log_like + log_prior)
