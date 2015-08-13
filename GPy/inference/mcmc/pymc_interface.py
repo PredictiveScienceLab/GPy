@@ -8,6 +8,8 @@ We keep it as simple as possible.
 
 import pymc as pm
 import numpy as np
+import math
+from scipy.misc import logsumexp
 
 
 __all__ = ['PyMCInterface']
@@ -147,7 +149,7 @@ class PyMCInterface(object):
         def hyperparameters(model=model):
             return model['theta']
         @pm.deterministic(dtype=float)
-        def log_likelihood(model=model):#, theta=transformed_hyperparameters):
+        def log_likelihood(model=model):
             return model['log_like']
         @pm.deterministic(dtype=float)
         def log_prior(model=model):
@@ -166,7 +168,8 @@ class PyMCInterface(object):
             @pm.deterministic(dtype=np.ndarray)
             def posterior_samples(mu=predictive_mean, C=predictive_covariance,
                                   model=model, theta=transformed_hyperparameters):
-                return np.random.multivariate_normal(mu.flatten(), C, self.num_predict)
+                return np.random.multivariate_normal(mu.flatten(), C,
+                                                     self.num_predict)
             pymc_model['predictive_mean'] = predictive_mean
             pymc_model['predictive_variance'] = predictive_covariance
             pymc_model['posterior_samples'] = posterior_samples
@@ -186,3 +189,37 @@ class PyMCInterface(object):
                                         self.pymc_model['transformed_hyperparameters'],
                                         **self.pymc_step_method_params)
         return self._pymc_mcmc
+
+    @property
+    def log_evidence(self):
+        """
+        Compute the evidence using the method of Newtown and Raftery (1994).
+        """
+        return self.get_log_evidence()
+
+    def get_log_evidence(self, last_idx=-1):
+        """
+        Compute the evidence using the method of Newtown and Raftery (1994).
+        """
+        log_like = self.pymc_mcmc.trace('log_likelihood')[:last_idx]
+        return self._get_log_evidence(log_like)
+
+    def _get_log_evidence(self, log_like):
+        """
+        Compute the evidence using the method of Newtown and Raftery (1994).
+        """
+        n = log_like.shape[0]
+        log_e = -math.log(n) + logsumexp(log_like)
+        log_E = -log_e
+        return log_E
+
+    def get_log_evidence_history(self):
+        """
+        Get the history of the log evidence.
+        """
+        log_like = self.pymc_mcmc.trace('log_likelihood')[:]
+        n = log_like.shape[0]
+        res = np.ndarray((n-2,))
+        for i in xrange(n-2):
+            res[i] = self._get_log_evidence(log_like[:i+1])
+        return res

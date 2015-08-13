@@ -148,9 +148,18 @@ class PyMCTestCase(unittest.TestCase):
         gpy_model.pymc_step_method_params['shrink_if_necessary'] = True
         #gpy_model.pymc_step_method_params['scales'] = {}
         #gpy_model.pymc_step_method_params['scales'][gpy_model.pymc_model['transformed_hyperparameters']] = np.ones(3) * 0.01
-        gpy_model.pymc_mcmc.sample(10000, burn=5000, thin=200,
+        gpy_model.pymc_mcmc.sample(20000, burn=1000, thin=200,
                                    tune_throughout=False, verbose=False)
         print 'number of choleskys:', gpy_model.inference_method.count
+        print 'log evidence and uncertainty:', gpy_model.log_evidence
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        log_E  = gpy_model.get_log_evidence_history()
+        idx = np.arange(log_E.shape[0])
+        plt.plot(idx, log_E)
+        plt.show(block=True)
+
+        quit()
         theta = gpy_model.pymc_mcmc.trace('hyperparameters')[:]
         phi = gpy_model.pymc_mcmc.trace('transformed_hyperparameters')[:]
         means = gpy_model.pymc_mcmc.trace('predictive_mean')[:]
@@ -160,9 +169,9 @@ class PyMCTestCase(unittest.TestCase):
         p_95 = np.percentile(posterior_samples, 95, axis=0) 
         log_like = gpy_model.pymc_mcmc.trace('log_likelihood')[:]
         log_prior = gpy_model.pymc_mcmc.trace('log_prior')[:]
-        print log_like
-        print log_prior
-        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.plot(theta[:, 0], theta[:, 1], '.')
+        plt.show(block=True)
         fig, ax = plt.subplots()
         ax.plot(log_like + log_prior)
         plt.show(block=True)
