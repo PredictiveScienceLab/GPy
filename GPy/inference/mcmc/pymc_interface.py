@@ -206,23 +206,14 @@ class PyMCInterface(object):
         return self.get_log_evidence()
 
     def get_log_evidence(self, last_idx=-1):
-        """
-        Compute the evidence using the method of Newton and Raftery (1994).
-        """
         log_like = self.pymc_mcmc.trace('log_likelihood')[:last_idx]
         return self._get_log_evidence(log_like)
 
     def _get_log_evidence(self, log_like):
-        """
-        Compute the evidence using the method of Newtown and Raftery (1994).
-        """
         n = log_like.shape[0]
         return np.log(n) - logsumexp(-log_like)
 
     def get_log_evidence_history(self):
-        """
-        Get the history of the log evidence.
-        """
         log_like = self.pymc_mcmc.trace('log_likelihood')[:]
         n = log_like.shape[0]
         res = np.ndarray((n-2,))
