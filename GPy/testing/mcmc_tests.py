@@ -9,6 +9,7 @@ import numpy as np
 import GPy
 import pymc as pm
 from scipy.misc import logsumexp
+from scipy.integrate import quad
 
 
 class TestModel(GPy.Model):
@@ -22,7 +23,7 @@ class TestModel(GPy.Model):
         self.link_parameter(xp)
 
     def log_likelihood(self):
-        return 0.
+        return -0.5 * (self.x - 3.) ** 2.
 
 
 class Mixture(GPy.priors.Prior):
@@ -74,18 +75,23 @@ class PyMCTestCase(unittest.TestCase):
     #    m.x.set_prior(prior)
     #    m.x.unconstrain()
     #    m.x.constrain(GPy.constraints.Logexp())
+    #    f = lambda(x): np.exp(-m._objective(x))
     #    # Now use the adaptive metropolis algorithms to sample from this thing
-    #    m.pymc_mcmc.sample(10000, burn=1000, thin=10) 
+    #    m.pymc_mcmc.sample(100000, burn=1000, thin=100) 
     #    theta = m.pymc_mcmc.trace('hyperparameters')[:]
     #    phi = m.pymc_mcmc.trace('transformed_hyperparameters')[:]
     #    thetas = np.linspace(theta.min(), theta.max(), 100)
+    #    result = quad(f, -np.inf, np.inf)
+    #    print m.get_log_evidence_history()
+    #    print result
+    #    quit()
     #    # UNCOMMENT TO SEE GRAPHICAL COMPARISON
     #    #import matplotlib.pyplot as plt
     #    #fig, ax = plt.subplots()
     #    #ax.hist(theta, bins=100, alpha=0.5, normed=True)
     #    #true_pdf = prior.pdf(thetas)
     #    #ax.plot(thetas, true_pdf, 'r', linewidth=2)
-    #    #plt.show(block=True)
+    #    plt.show(block=True)
 
     #def test_sampling_from_1d_mixture_dist(self):
     #    """
@@ -126,10 +132,6 @@ class PyMCTestCase(unittest.TestCase):
     def test_olympic_100m_men(self):
         np.random.seed(12345)
         gpy_model = GPy.examples.regression.olympic_100m_men(plot=False, optimize=True)
-        #X = gpy_model.X.copy()
-        #Y = gpy_model.Y.copy()
-        #k = GPy.kern.RBF(1, lengthscale=300., variance=25.)
-        #gpy_model = GPy.models.GPRegression(X, Y, k)
         gpy_model._X_predict=np.linspace(1850., 2050., 100)[:, None]
         gpy_model.update_model(False)
         gpy_model.likelihood.variance.set_prior(GPy.priors.Jeffreys())
@@ -137,18 +139,9 @@ class PyMCTestCase(unittest.TestCase):
         #gpy_model.kern.lengthscale.set_prior(GPy.priors.Jeffreys())
         gpy_model.kern.lengthscale.set_prior(GPy.priors.LogGaussian(mu=500., sigma=100.))
         gpy_model.update_model(True)
-        #gpy_model.likelihood.variance.unconstrain()
-        #gpy_model.likelihood.variance.constrain(GPy.constraints.Log())
-        #gpy_model.kern.lengthscale.unconstrain()
-        #gpy_model.kern.lengthscale.constrain(GPy.constraints.Log())
-        #gpy_model.kern.variance.unconstrain()
-        #gpy_model.kern.variance.constrain(GPy.constraints.Log())
-        # We are use it a flat prior on the lengthscales
         gpy_model.pymc_step_method_params['verbose'] = 0
         gpy_model.pymc_step_method_params['shrink_if_necessary'] = True
-        #gpy_model.pymc_step_method_params['scales'] = {}
-        #gpy_model.pymc_step_method_params['scales'][gpy_model.pymc_model['transformed_hyperparameters']] = np.ones(3) * 0.01
-        gpy_model.pymc_mcmc.sample(20000, burn=1000, thin=200,
+        gpy_model.pymc_mcmc.sample(10000, burn=1000, thin=100,
                                    tune_throughout=False, verbose=False)
         print 'number of choleskys:', gpy_model.inference_method.count
         print 'log evidence and uncertainty:', gpy_model.log_evidence
@@ -158,8 +151,6 @@ class PyMCTestCase(unittest.TestCase):
         idx = np.arange(log_E.shape[0])
         plt.plot(idx, log_E)
         plt.show(block=True)
-
-        quit()
         theta = gpy_model.pymc_mcmc.trace('hyperparameters')[:]
         phi = gpy_model.pymc_mcmc.trace('transformed_hyperparameters')[:]
         means = gpy_model.pymc_mcmc.trace('predictive_mean')[:]
@@ -181,7 +172,6 @@ class PyMCTestCase(unittest.TestCase):
             fig, ax = plt.subplots()
             ax.hist(theta[:, i])
         fig, ax = plt.subplots()
-        #gpy_model.plot(ax=ax)
         for i in xrange(means.shape[0]):
             ax.plot(gpy_model.X_predict, means[i, :], 'r', linewidth=0.5)
         ax.plot(gpy_model.X, gpy_model.Y, 'x')

@@ -10,6 +10,7 @@ import pymc as pm
 import numpy as np
 import math
 from scipy.misc import logsumexp
+from scipy.stats import hmean
 
 
 __all__ = ['PyMCInterface']
@@ -193,13 +194,20 @@ class PyMCInterface(object):
     @property
     def log_evidence(self):
         """
-        Compute the evidence using the method of Newtown and Raftery (1994).
+        Compute the evidence using the method of Newton and Raftery (1994).
+
+        The method is really bad and, actually, does not work.
+        The reasons are explained in this post of Neal Radford:
+        https://radfordneal.wordpress.com/2008/08/17/the-harmonic-mean-of-the-likelihood-worst-monte-carlo-method-ever/
+
+        The only reason I implement it here, is because it is the easiest thing
+        to do. So, consider it a placeholder for something better.
         """
         return self.get_log_evidence()
 
     def get_log_evidence(self, last_idx=-1):
         """
-        Compute the evidence using the method of Newtown and Raftery (1994).
+        Compute the evidence using the method of Newton and Raftery (1994).
         """
         log_like = self.pymc_mcmc.trace('log_likelihood')[:last_idx]
         return self._get_log_evidence(log_like)
@@ -209,9 +217,7 @@ class PyMCInterface(object):
         Compute the evidence using the method of Newtown and Raftery (1994).
         """
         n = log_like.shape[0]
-        log_e = -math.log(n) + logsumexp(log_like)
-        log_E = -log_e
-        return log_E
+        return np.log(n) - logsumexp(-log_like)
 
     def get_log_evidence_history(self):
         """
