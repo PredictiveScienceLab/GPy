@@ -9,6 +9,7 @@ We keep it as simple as possible.
 import pymc as pm
 import numpy as np
 import math
+from ei import expected_improvement
 from scipy.misc import logsumexp
 from scipy.stats import hmean
 
@@ -73,6 +74,9 @@ class PyMCInterface(object):
     # Number of samples to take for predictions
     _num_predict = None
 
+    # A list of quantities you would like to compute at each MCMC sample
+    _deterministics = None
+
     @property
     def pymc_db(self):
         return self._pymc_db
@@ -107,16 +111,187 @@ class PyMCInterface(object):
     def num_predict(self):
         return self._num_predict
 
+    @property
+    def pymc_deterministics(self):
+        return self._deterministics
+
     def __init__(self, pymc_db='ram', pymc_db_opts={},
                  pymc_step_method=pm.AdaptiveMetropolis,
                  pymc_step_method_params={},
-                 X_predict=None, num_predict=100):
+                 X_predict=None, num_predict=10):
         self._pymc_db = pymc_db
         self._pymc_db_opts = pymc_db_opts
         self._pymc_step_method = pymc_step_method
         self._pymc_step_method_params = pymc_step_method_params
         self._X_predict = X_predict
         self._num_predict = num_predict
+        self._deterministics = []
+        self.has_posterior_samples = False
+        self.has_denoised_posterior_samples = False
+
+    def pymc_trace_deterministic(self,
+                               func,
+                               name,
+                               doc='PyMC deterministic',
+                               parents=['predictive_mean',
+                                        'predictive_covariance',
+                                        'hyperparameters'],
+                               trace=True,
+                               plot=False,
+                               **kwargs):
+        """
+        Add a deterministic to be monitored by the class at each MCMC step.
+
+        :param func:    The function to be evaluated.
+        :param name:    The name of the deterministic.
+        :param doc:     Brief description of what the deterministic is.
+        :param parents: The names of the inputs of ``func``.
+        :param trace:   ``True`` if you want to save it to the data base
+
+        The rest of the keywords are the same as in ``pymc.Deterministic``.
+        """
+        self.pymc_deterministics.append({'name': name,
+                                         'eval': func,
+                                         'doc': doc,
+                                         'parents': parents,
+                                         'plot': plot,
+                                         'trace': trace})
+        self.pymc_deterministics[-1].update(kwargs)
+
+    def pymc_trace_posterior_samples(self):
+        """
+        Adds the posterior samples deterministic.
+        """
+        if self.X_predict is not None:
+            def func(predictive_mean, predictive_covariance, hyperparameters):
+                return np.random.multivariate_normal(predictive_mean.flatten(),
+                                                     predictive_covariance,
+                                                     self.num_predict)
+            self.pymc_trace_deterministic(func,
+                                        'posterior_samples',
+                                        dtype=np.ndarray)
+            self.has_posterior_samples = True
+
+    def pymc_trace_denoised_posterior_samples(self):
+        """
+        Adds the posterior samples deterministic.
+
+        Be careful: This only work with a Gaussian likelihood and under the
+        assumption that the variance of the likelihood is the last hyperparameter.
+
+        Modify this accordingly if you have a non-standard GP model.
+        """
+        if self.X_predict is not None:
+            def func(predictive_mean, predictive_covariance, hyperparameters):
+                return np.random.multivariate_normal(predictive_mean.flatten(),
+ predictive_covariance - hyperparameters[-1] * np.eye(predictive_covariance.shape[0]),
+                                                     self.num_predict)
+            self.pymc_trace_deterministic(func,
+                                        'denoised_posterior_samples',
+                                        dtype=np.ndarray)
+            self.has_denoised_posterior_samples = True
+
+    def pymc_trace_func_of_posterior_samples(self, func, name,
+                                                         **kwargs):
+        """
+        Adds a deterministic that is a function of each one of the posterior
+        samples.
+        """
+        if not self.has_posterior_samples:
+            self.pymc_trace_posterior_samples()
+        if self.has_posterior_samples:
+            self.pymc_trace_deterministic(func, name,
+                                          parents=['posterior_samples'],
+                                          **kwargs)
+
+    def pymc_trace_expected_improvement(self, mode='min', denoised=False, **kwargs):
+        parents = ['predictive_mean', 'predictive_covariance']
+        if not denoised:
+            name = 'ei_' + mode
+            def func(predictive_mean, predictive_covariance):
+                    return expected_improvement(predictive_mean,
+                                         np.diag(predictive_covariance),
+                                         self.Y, mode=mode, noise=0.)
+        else:
+            name = 'denoised_ei_' + mode
+            def func(predictive_mean, predictive_covariance,
+                          denoised_outputs, hyperparameters):
+                    return expected_improvement(predictive_mean,
+                                         np.diag(predictive_covariance),
+                                         denoised_outputs, mode=mode,
+                                         noise=hyperparameters[-1])
+            parents.append('denoised_outputs')
+            parents.append('hyperparameters')
+        self.pymc_trace_deterministic(func,
+                                      name,
+                                      dtype=float,
+                                      parents=parents,
+                                      **kwargs)
+
+    def pymc_trace_max(self):
+        """
+        Adds a deterministic that traces the maximum of the posterior samples.
+        """
+        func = lambda(posterior_samples): np.max(posterior_samples, axis=1)
+        self.pymc_trace_func_of_posterior_samples(func, 'max',
+                                                   doc='Maximum over X_predict')
+
+    def pymc_trace_argmax(self):
+        func = lambda(posterior_samples): np.argmax(posterior_samples, axis=1)
+        self.pymc_trace_func_of_posterior_samples(func, 'argmax',
+                                                  doc='Argmax over X_predict')
+
+    def pymc_trace_min(self):
+        """
+        Adds a deterministic that traces the minimum of the posterior samples.
+        """
+        func = lambda(posterior_samples): np.min(posterior_samples, axis=1)
+        self.pymc_trace_func_of_posterior_samples(func, 'min',
+                                                  doc='Minimum over X_predict')
+
+    def pymc_trace_argmin(self):
+        func = lambda(posterior_samples): np.argmin(posterior_samples, axis=1)
+        self.pymc_trace_func_of_posterior_samples(func, 'argmin',
+                                                  doc='Argmin over X_predict')
+
+    def pymc_trace_func_of_denoised_posterior_samples(self, func, name,
+                                                         **kwargs):
+        """
+        Adds a deterministic that is a function of each one of the posterior
+        samples.
+        """
+        if not self.has_denoised_posterior_samples:
+            self.pymc_trace_denoised_posterior_samples()
+        if self.has_denoised_posterior_samples:
+            self.pymc_trace_deterministic(func, name,
+                                          parents=['denoised_posterior_samples'],
+                                          **kwargs)
+
+    def pymc_trace_denoised_max(self):
+        """
+        Adds a deterministic that traces the maximum of the posterior samples.
+        """
+        func = lambda(denoised_posterior_samples): np.max(denoised_posterior_samples, axis=1)
+        self.pymc_trace_func_of_denoised_posterior_samples(func, 'denoised_max',
+                                                   doc='Maximum over X_predict')
+
+    def pymc_trace_denoised_argmax(self):
+        func = lambda(denoised_posterior_samples): np.argmax(denoised_posterior_samples, axis=1)
+        self.pymc_trace_func_of_denoised_posterior_samples(func, 'denoised_argmax',
+                                                  doc='Argmax over X_predict')
+
+    def pymc_trace_denoised_min(self):
+        """
+        Adds a deterministic that traces the minimum of the posterior samples.
+        """
+        func = lambda(denoised_posterior_samples): np.min(denoised_posterior_samples, axis=1)
+        self.pymc_trace_func_of_denoised_posterior_samples(func, 'denoised_min',
+                                                  doc='Minimum over X_predict')
+
+    def pymc_trace_denoised_argmin(self):
+        func = lambda(denoised_posterior_samples): np.argmin(denoised_posterior_samples, axis=1)
+        self.pymc_trace_func_of_denoised_posterior_samples(func, 'denoised_argmin',
+                                                  doc='Argmin over X_predict')
 
     @property
     def pymc_model(self):
@@ -138,27 +313,35 @@ class PyMCInterface(object):
             phi = np.ndarray(theta.shape)
             obj._inverse_hyperparameter_transform(theta, phi)
             res['theta'] = theta
+            res['phi'] = phi
             if obj.X_predict is not None:
                 tmp = obj.predict(obj.X_predict, full_cov=True)
                 res['predictive_mean'] = tmp[0]
                 res['predictive_covariance'] = tmp[1]
+            # The projections of the observations which are useful in defining
+            # the expected improvement for noisy cases
+            res['denoised_outputs'] = self.predict(self.X)[0]
             return res
         @pm.stochastic(observed=True, trace=False)
         def observation(value=1., model=model):
             return model['log_p']
         @pm.deterministic(dtype=np.ndarray)
         def hyperparameters(model=model):
-            return model['theta']
+            return model['phi']
         @pm.deterministic(dtype=float)
         def log_likelihood(model=model):
             return model['log_like']
         @pm.deterministic(dtype=float)
         def log_prior(model=model):
             return model['log_prior']
+        @pm.deterministic(dtype=np.ndarray)
+        def denoised_outputs(model=model):
+            return model['denoised_outputs']
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters
         pymc_model['log_likelihood'] = log_likelihood
         pymc_model['log_prior'] = log_prior
+        pymc_model['denoised_outputs'] = denoised_outputs
         if self.X_predict is not None:
             @pm.deterministic(dtype=np.ndarray)
             def predictive_mean(model=model):
@@ -166,16 +349,27 @@ class PyMCInterface(object):
             @pm.deterministic(dtype=np.ndarray)
             def predictive_covariance(model=model):
                 return model['predictive_covariance']
-            @pm.deterministic(dtype=np.ndarray)
-            def posterior_samples(mu=predictive_mean, C=predictive_covariance,
-                                  model=model, theta=transformed_hyperparameters):
-                return np.random.multivariate_normal(mu.flatten(), C,
-                                                     self.num_predict)
             pymc_model['predictive_mean'] = predictive_mean
-            pymc_model['predictive_variance'] = predictive_covariance
-            pymc_model['posterior_samples'] = posterior_samples
+            pymc_model['predictive_covariance'] = predictive_covariance
+            self._pymc_update_model_with_deterministics(pymc_model)
         self._pymc_model = pymc_model
         return self._pymc_model
+
+    def _pymc_update_model_with_deterministics(self, pymc_model):
+        for d in self.pymc_deterministics:
+            dc = d.copy()
+            eval = dc['eval']
+            del dc['eval']
+            doc = dc['doc']
+            del dc['doc']
+            name = dc['name']
+            del dc['name']
+            real_parents = {}
+            for p in dc['parents']:
+                real_parents[p] = pymc_model[p]
+            dc['parents'] = real_parents
+            d_obj = pm.Deterministic(eval, doc, name, **dc)
+            pymc_model[name] = d_obj
 
     @property
     def pymc_mcmc(self):
