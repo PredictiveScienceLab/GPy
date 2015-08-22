@@ -219,13 +219,13 @@ class PyMCInterface(object):
                          min_denoised_output, hyperparameters):
                     return expected_improvement(predictive_mean,
                                          np.diag(predictive_covariance),
-                                         denoised_outputs, mode=mode,
+                                         min_denoised_output, mode=mode,
                                          noise=hyperparameters[-1])
             def max_func(predictive_mean, predictive_covariance,
                          max_denoised_output, hyperparameters):
                     return expected_improvement(predictive_mean,
                                          np.diag(predictive_covariance),
-                                         denoised_outputs, mode=mode,
+                                         max_denoised_output, mode=mode,
                                          noise=hyperparameters[-1])
             parents.append(mode + '_denoised_output')
             parents.append('hyperparameters')
