@@ -230,8 +230,6 @@ class PyMCInterface(object):
             parents.append(mode + '_denoised_output')
             parents.append('hyperparameters')
         func = eval(mode + '_func')
-        print func
-        quit()
         self.pymc_trace_deterministic(func,
                                       name,
                                       dtype=float,
