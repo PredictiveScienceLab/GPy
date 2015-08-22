@@ -211,17 +211,27 @@ class PyMCInterface(object):
             def func(predictive_mean, predictive_covariance):
                     return expected_improvement(predictive_mean,
                                          np.diag(predictive_covariance),
-                                         self.Y, mode=mode, noise=0.)
+                                         eval('self.Y.' + mode + '()'),
+                                         mode=mode, noise=0.)
         else:
             name = 'denoised_ei_' + mode
-            def func(predictive_mean, predictive_covariance,
-                          denoised_outputs, hyperparameters):
+            def min_func(predictive_mean, predictive_covariance,
+                         min_denoised_output, hyperparameters):
+                    return expected_improvement(predictive_mean,
+                                         np.diag(predictive_covariance),
+                                         denoised_outputs, mode=mode,
+                                         noise=hyperparameters[-1])
+            def max_func(predictive_mean, predictive_covariance,
+                         max_denoised_output, hyperparameters):
                     return expected_improvement(predictive_mean,
                                          np.diag(predictive_covariance),
                                          denoised_outputs, mode=mode,
                                          noise=hyperparameters[-1])
             parents.append(mode + '_denoised_output')
             parents.append('hyperparameters')
+        func = eval(mode + '_func')
+        print func
+        quit()
         self.pymc_trace_deterministic(func,
                                       name,
                                       dtype=float,
@@ -334,10 +344,10 @@ class PyMCInterface(object):
         @pm.deterministic(dtype=float)
         def log_prior(model=model):
             return model['log_prior']
-        @pm.deterministic(dtype=np.ndarray)
+        @pm.deterministic(dtype=float)
         def max_denoised_output(model=model):
             return model['denoised_outputs'].max()
-        @pm.deterministic(dtype=np.ndarray)
+        @pm.deterministic(dtype=float)
         def min_denoised_output(model=model):
             return model['denoised_outputs'].min()
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
