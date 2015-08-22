@@ -335,7 +335,7 @@ class PyMCInterface(object):
         def log_prior(model=model):
             return model['log_prior']
         @pm.deterministic(dtype=np.ndarray)
-        def denoised_outputs(model=model):
+        def denoised_outputs(model=model, trace=False):
             return model['denoised_outputs']
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters

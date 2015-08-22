@@ -32,7 +32,6 @@ def expected_improvement(predictive_mean, predictive_variance,
                     ``model.likelihood.noise``, if possible.
     :returns:       The expected improvement on all design points.
     """
-    #m_obs = model.predict(X)[0].flatten()
     m_obs = Y_obs.flatten()
     m_s = predictive_mean
     v_s = predictive_variance
