@@ -220,7 +220,7 @@ class PyMCInterface(object):
                                          np.diag(predictive_covariance),
                                          denoised_outputs, mode=mode,
                                          noise=hyperparameters[-1])
-            parents.append('denoised_outputs')
+            parents.append(mode + '_denoised_output')
             parents.append('hyperparameters')
         self.pymc_trace_deterministic(func,
                                       name,
@@ -335,13 +335,17 @@ class PyMCInterface(object):
         def log_prior(model=model):
             return model['log_prior']
         @pm.deterministic(dtype=np.ndarray)
-        def denoised_outputs(model=model, trace=False):
-            return model['denoised_outputs']
+        def max_denoised_output(model=model):
+            return model['denoised_outputs'].max()
+        @pm.deterministic(dtype=np.ndarray)
+        def min_denoised_output(model=model):
+            return model['denoised_outputs'].min()
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters
         pymc_model['log_likelihood'] = log_likelihood
         pymc_model['log_prior'] = log_prior
-        pymc_model['denoised_outputs'] = denoised_outputs
+        pymc_model['max_denoised_output'] = max_denoised_output
+        pymc_model['min_denoised_output'] = min_denoised_output
         if self.X_predict is not None:
             @pm.deterministic(dtype=np.ndarray)
             def predictive_mean(model=model):
