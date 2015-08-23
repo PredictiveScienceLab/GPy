@@ -113,6 +113,7 @@ class LogLogistic(Prior):
     """
     This is the Log-Logistic prior suggested as a good prior for lengthscales by Conti & O'Hagan (2010).
     """
+    domain = _POSITIVE
 
     def lnpdf(self, x):
         return -(1. + x ** 2)
