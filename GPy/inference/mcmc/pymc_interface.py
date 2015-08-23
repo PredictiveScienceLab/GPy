@@ -347,7 +347,7 @@ class PyMCInterface(object):
             return np.max(model['denoised_outputs'], axis=0)
         @pm.deterministic(dtype=np.ndarray)
         def min_denoised_output(model=model):
-            return np.max(model['denoised_outputs'], axis=0)
+            return np.min(model['denoised_outputs'], axis=0)
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters
         pymc_model['log_likelihood'] = log_likelihood
