@@ -348,12 +348,22 @@ class PyMCInterface(object):
         @pm.deterministic(dtype=float)
         def min_denoised_output(model=model):
             return model['denoised_outputs'].min()
+        @pm.deterministic(dtype=np.ndarray)
+        def best_min_input(model=model):
+            i = np.argmin(model['denoised_outputs'])
+            return self.X_predict[i, :]
+        @pm.deterministic(dtype=np.ndarray)
+        def best_max_input(model=model):
+            i = np.argmax(model['denoised_outputs'])
+            return self.X_predict[i, :]
         pymc_model = {'transformed_hyperparameters': transformed_hyperparameters}
         pymc_model['hyperparameters'] = hyperparameters
         pymc_model['log_likelihood'] = log_likelihood
         pymc_model['log_prior'] = log_prior
         pymc_model['max_denoised_output'] = max_denoised_output
         pymc_model['min_denoised_output'] = min_denoised_output
+        pymc_model['best_min_input'] = best_min_input
+        pymc_model['best_max_input'] = best_max_input
         if self.X_predict is not None:
             @pm.deterministic(dtype=np.ndarray)
             def predictive_mean(model=model):
