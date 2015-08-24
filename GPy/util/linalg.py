@@ -45,7 +45,7 @@ else:
         _blas_available = True
     except AttributeError as e:
         _blas_available = False
-        warnings.warn("warning: caught this exception:" + str(e))
+        #warnings.warn("warning: caught this exception:" + str(e))
 
 def force_F_ordered_symmetric(A):
     """
