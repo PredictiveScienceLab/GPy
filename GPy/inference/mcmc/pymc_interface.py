@@ -134,7 +134,7 @@ class PyMCInterface(object):
                                name,
                                doc='PyMC deterministic',
                                parents=['predictive_mean',
-                                        'predictive_covariance',
+                                        'predictive_variance',
                                         'hyperparameters'],
                                trace=True,
                                plot=False,
@@ -163,9 +163,9 @@ class PyMCInterface(object):
         Adds the posterior samples deterministic.
         """
         if self.X_predict is not None:
-            def func(predictive_mean, predictive_covariance, hyperparameters):
+            def func(predictive_mean, predictive_variance, hyperparameters):
                 return np.random.multivariate_normal(predictive_mean.flatten(),
-                                                     predictive_covariance,
+                                                     predictive_variance,
                                                      self.num_predict)
             self.pymc_trace_deterministic(func,
                                         'posterior_samples',
@@ -182,9 +182,9 @@ class PyMCInterface(object):
         Modify this accordingly if you have a non-standard GP model.
         """
         if self.X_predict is not None:
-            def func(predictive_mean, predictive_covariance, hyperparameters):
+            def func(predictive_mean, predictive_variance, hyperparameters):
                 return np.random.multivariate_normal(predictive_mean.flatten(),
- predictive_covariance - hyperparameters[-1] * np.eye(predictive_covariance.shape[0]),
+ predictive_variance - hyperparameters[-1] * np.eye(predictive_variance.shape[0]),
                                                      self.num_predict)
             self.pymc_trace_deterministic(func,
                                         'denoised_posterior_samples',
@@ -205,26 +205,26 @@ class PyMCInterface(object):
                                           **kwargs)
 
     def pymc_trace_expected_improvement(self, mode='min', denoised=False, **kwargs):
-        parents = ['predictive_mean', 'predictive_covariance']
+        parents = ['predictive_mean', 'predictive_variance']
         if not denoised:
             name = 'ei_' + mode
-            def func(predictive_mean, predictive_covariance):
+            def func(predictive_mean, predictive_variance):
                     return expected_improvement(predictive_mean,
-                                         np.diag(predictive_covariance),
+                                         predictive_variance,
                                          eval('self.Y.' + mode + '()'),
                                          mode=mode, noise=0.)
         else:
             name = 'denoised_ei_' + mode
-            def min_func(predictive_mean, predictive_covariance,
+            def min_func(predictive_mean, predictive_variance,
                          min_denoised_output, hyperparameters):
                     return expected_improvement(predictive_mean,
-                                         np.diag(predictive_covariance),
+                                         predictive_variance,
                                          min_denoised_output, mode=mode,
                                          noise=hyperparameters[-1])
-            def max_func(predictive_mean, predictive_covariance,
+            def max_func(predictive_mean, predictive_variance,
                          max_denoised_output, hyperparameters):
                     return expected_improvement(predictive_mean,
-                                         np.diag(predictive_covariance),
+                                         predictive_variance,
                                          max_denoised_output, mode=mode,
                                          noise=hyperparameters[-1])
             parents.append(mode + '_denoised_output')
@@ -325,7 +325,7 @@ class PyMCInterface(object):
             if obj.X_predict is not None:
                 tmp = obj.predict(obj.X_predict, full_cov=False)
                 res['predictive_mean'] = tmp[0]
-                res['predictive_covariance'] = tmp[1]
+                res['predictive_variance'] = tmp[1]
             # The projections of the observations which are useful in defining
             # the expected improvement for noisy cases
             res['denoised_outputs'] = self.predict(self.X)[0]
@@ -359,10 +359,10 @@ class PyMCInterface(object):
             def predictive_mean(model=model):
                 return model['predictive_mean']
             @pm.deterministic(dtype=np.ndarray)
-            def predictive_covariance(model=model):
-                return model['predictive_covariance']
+            def predictive_variance(model=model):
+                return model['predictive_variance']
             pymc_model['predictive_mean'] = predictive_mean
-            pymc_model['predictive_covariance'] = predictive_covariance
+            pymc_model['predictive_variance'] = predictive_variance
             self._pymc_update_model_with_deterministics(pymc_model)
         self._pymc_model = pymc_model
         return self._pymc_model
