@@ -323,7 +323,7 @@ class PyMCInterface(object):
             res['theta'] = theta
             res['phi'] = phi
             if obj.X_predict is not None:
-                tmp = obj.predict(obj.X_predict, full_cov=True)
+                tmp = obj.predict(obj.X_predict, full_cov=False)
                 res['predictive_mean'] = tmp[0]
                 res['predictive_covariance'] = tmp[1]
             # The projections of the observations which are useful in defining
