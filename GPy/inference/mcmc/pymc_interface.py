@@ -164,9 +164,12 @@ class PyMCInterface(object):
         """
         if self.X_predict is not None:
             def func(predictive_mean, predictive_variance, hyperparameters):
-                return np.random.multivariate_normal(predictive_mean.flatten(),
-                                                     predictive_variance,
-                                                     self.num_predict)
+                mu = predictive_mean.flatten()
+                sigma = np.sqrt(predictive_variance.flatten())
+                return mu + sigma * np.random.randn(self.num_predict, mu.shape[0])
+                #return np.random.multivariate_normal(predictive_mean.flatten(),
+                #                                     np.diag(predictive_variance),
+                #                                     self.num_predict)
             self.pymc_trace_deterministic(func,
                                         'posterior_samples',
                                         dtype=np.ndarray)
@@ -183,9 +186,14 @@ class PyMCInterface(object):
         """
         if self.X_predict is not None:
             def func(predictive_mean, predictive_variance, hyperparameters):
-                return np.random.multivariate_normal(predictive_mean.flatten(),
- predictive_variance - hyperparameters[-1] * np.eye(predictive_variance.shape[0]),
-                                                     self.num_predict)
+                mu = predictive_mean.flatten()
+                sigma2 = predictive_variance.flatten() - hyperparameters[-1]
+                sigma2[sigma2 < 0.] = 0.
+                sigma = np.sqrt(sigma2)
+                return mu + sigma * np.random.randn(self.num_predict, mu.shape[0])
+                #return np.random.multivariate_normal(predictive_mean.flatten(),
+                #predictive_variance - hyperparameters[-1] * np.eye(predictive_variance.shape[0]),
+                #                                     self.num_predict)
             self.pymc_trace_deterministic(func,
                                         'denoised_posterior_samples',
                                         dtype=np.ndarray)
