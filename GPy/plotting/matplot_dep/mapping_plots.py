@@ -4,7 +4,7 @@
 import numpy as np
 try:
     import Tango
-    import pylab as pb
+    from matplotlib import pyplot as pb
 except:
     pass
 from base_plots import x_frame1D, x_frame2D
@@ -81,4 +81,4 @@ def plot_mapping(self, plot_limits=None, which_data='all', which_parts='all', re
         ax.set_ylim(xmin[1], xmax[1])
 
     else:
-        raise NotImplementedError, "Cannot define a frame with more than two input dimensions"
+        raise NotImplementedError("Cannot define a frame with more than two input dimensions")

@@ -2,6 +2,10 @@
 # Licensed under the BSD 3-clause license (see LICENSE.txt)
 
 try:
-    import matplot_dep
+    from . import matplot_dep
 except (ImportError, NameError):
-    print 'Fail to load GPy.plotting.matplot_dep.'
+    # Matplotlib not available
+    import warnings
+    warnings.warn(ImportWarning("Matplotlib not available, install newest version of Matplotlib for plotting"))
+    #sys.modules['matplotlib'] =
+    #sys.modules[__name__+'.matplot_dep'] = ImportWarning("Matplotlib not available, install newest version of Matplotlib for plotting")

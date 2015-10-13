@@ -2,7 +2,7 @@
 # Licensed under the BSD 3-clause license (see LICENSE.txt)
 
 try:
-    import pylab as pb
+    from matplotlib import pyplot as pb
 except:
     pass
 #import numpy as np
@@ -12,7 +12,7 @@ except:
 
 def plot_optimizer(optimizer):
     if optimizer.trace == None:
-        print "No trace present so I can't plot it. Please check that the optimizer actually supplies a trace."
+        print("No trace present so I can't plot it. Please check that the optimizer actually supplies a trace.")
     else:
         pb.figure()
         pb.plot(optimizer.trace)
